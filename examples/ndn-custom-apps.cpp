@@ -41,23 +41,72 @@ main(int argc, char* argv[])
   CommandLine cmd;
   cmd.Parse(argc, argv);
 
-  // Creating nodes
-  Ptr<Node> node = CreateObject<Node>();
+  //read the topology
+  AnnotatedTopologyReader topologyReader("", 1); 
+  topologyReader.SetFileName("src/ndnSIM/examples/topologies/topology_ndnsim.txt");
+  topologyReader.Read();
 
-  // Install NDN stack on all nodes
+  // install NDN on nodes
   ndn::StackHelper ndnHelper;
   ndnHelper.SetDefaultRoutes(true);
   ndnHelper.InstallAll();
 
+  // Choosing forwarding strategy
+  ndn::StrategyChoiceHelper::InstallAll("/cmip5", "/localhost/nfd/strategy/best-route");
+
+  // Installing global routing interface on all nodes
+  ndn::GlobalRoutingHelper ndnGlobalRoutingHelper;
+  ndnGlobalRoutingHelper.InstallAll();
+
+  std::vector<std::string> ipAddresses{"103.37.201.21","103.37.201.31","130.206.30.86","136.172.30.61","140.172.240.95","146.83.8.135","149.171.147.29","157.82.156.76","159.226.234.18","222.195.137.73"};
+
+  // Getting containers for the consumer/producer
+  Ptr<Node> producer = Names::Find<Node>("198.128.52.131");
+  Ptr<Node> consumers[10];
+  int index = 0;
+  for (const auto x: ipAddresses) {
+	consumers[index] = Names::Find<Node>(x);
+    index++;
+  }
+
+//  Ptr<Node> consumers[10] = {Names::Find<Node>("149.171.147.29"), Names::Find<Node>("136.172.30.61"),
+//                            Names::Find<Node>("146.83.8.135"), Names::Find<Node>("130.206.30.86")};
+
+  // Install NDN stack on all nodes
+
+
   // App1
-  ndn::AppHelper app1("CustomApp");
-  app1.Install(node);
+  ndn::AppHelper app1("ns3::ndn::LlnlSim");
+  int pos = 0;
+  for (const auto y: ipAddresses) {
+    app1.SetAttribute("IP" , StringValue(y));
+    app1.Install(consumers[pos]);
+    pos++;
+  }
+
 
   // App2
   ndn::AppHelper app2("Hijacker");
-  app2.Install(node); // last node
+  app2.Install(producer); // last node
 
-  Simulator::Stop(Seconds(20.0));
+
+  // Register /root prefix with global routing controller and
+  // install producer that will satisfy Interests in /root namespace
+  ndn::AppHelper producerHelper("ns3::ndn::Producer");
+  producerHelper.SetAttribute("PayloadSize", StringValue("1024"));
+
+  ndnGlobalRoutingHelper.AddOrigins("/cmip5", producer);
+  producerHelper.SetPrefix("/cmip5");
+  producerHelper.Install(producer).Start(Seconds(0));
+
+  // Calculate and install FIBs
+  ndn::GlobalRoutingHelper::CalculateRoutes();
+
+  //21793704
+//start: 1326440142
+//end: 1458114218 
+//40208263
+  Simulator::Stop(Seconds(200));
 
   Simulator::Run();
   Simulator::Destroy();
