@@ -88,8 +88,9 @@ public:
    std::cout << "IP = " << IP << std::endl;
 
   // Schedule send of first interest
-  auto fileName = "src/ndnSIM/examples/llnlsim/140.172.240.95.txt";
+  //auto fileName = "src/ndnSIM/examples/llnlsim/140.172.240.95.txt";
   //auto fileName = "/raid/llnl_simulation/ndnSIM_NEW/ns-3/data/" + IP + ".txt";
+  auto fileName = "src/ndnSIM/data/" + IP + ".txt";
   std::ifstream is(fileName);
   std::string line;
   std::vector<std::string> parts;
